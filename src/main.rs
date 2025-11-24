@@ -1,28 +1,31 @@
-use anyhow::{Context, Result};
-use std::env;
+mod cli;
+mod fetch;
+mod parse;
+
+use anyhow::Result;
+use clap::Parser;
+use url::Url;
+
+use crate::cli::Cli;
+use crate::fetch::fetch_body;
+use crate::parse::extract_links;
 
 fn main() -> Result<()> {
-    let url = env::args().nth(1).context("Usage: ./subrapid <URL>")?;
+    let args = Cli::parse();
 
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("subrapid-knightchaser/0.1")
-        .build()
-        .context("failed to build HTTP client")?;
+    let body = fetch_body(&args.url)?;
 
-    let resp = client
-        .get(&url)
-        .send()
-        .with_context(|| format!("failed to GET {}", url))?;
+    if args.links_only {
+        let base = Url::parse(&args.url)?;
+        let links = extract_links(&body, &base)?;
 
-    if !resp.status().is_success() {
-        anyhow::bail!("request failed with status: {}", resp.status());
+        println!("Found {} links:", links.len());
+        for link in links {
+            println!("{}", link);
+        }
+    } else {
+        println!("{}", body);
     }
-
-    let body = resp
-        .text()
-        .context("failed to read response body as text")?;
-
-    println!("{}", body);
 
     Ok(())
 }
