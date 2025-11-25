@@ -86,7 +86,7 @@ pub fn extract_root_domain(host: &str) -> Option<String> {
 
     // 2. Fallback: naive last-two-labels approach
     let parts: Vec<_> = host.split('.').collect();
-    if parts.len() >= 2 {
+    if parts.len() <= 2 {
         return None;
     }
 
