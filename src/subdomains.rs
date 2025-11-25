@@ -26,9 +26,10 @@ impl SubdomainMap {
             None => return,
         };
 
-        // Only accept the same-root-domain hosts,
-        // e.g. *.example.com for root_domain example.com
-        if !host.ends_with(root_domain) {
+        // Check if host belongs to root_domain
+        // Either exact match, or ends with ".root_domain"
+        let suffix = format!(".{}", root_domain);
+        if host != root_domain && !host.ends_with(&suffix) {
             return;
         }
 
