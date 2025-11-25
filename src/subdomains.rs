@@ -47,6 +47,7 @@ impl SubdomainMap {
     }
 
     /// Pretty-print everything in the map
+    #[allow(dead_code)]
     pub fn print(&self) {
         for (host, paths) in &self.inner {
             println!("{host}");

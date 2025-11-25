@@ -9,6 +9,7 @@ use clap::Parser;
 use url::Url;
 
 use crate::cli::Cli;
+use crate::crawler::crawl;
 use crate::subdomains::extract_root_domain;
 
 fn main() -> Result<()> {
@@ -20,30 +21,35 @@ fn main() -> Result<()> {
 
     let host = start_url
         .host_str()
-        .context("start URL has no host")?
-        .to_string();
+        .with_context(|| {
+            format!(
+                "Cannot derive root domain from URL {} without host",
+                args.url
+            )
+        })?
+        .to_lowercase();
 
-    // Compute naive root-domain, e.g. "stackoverflow.com"
-    let root_domain = extract_root_domain(&host)
-        .with_context(|| format!("could not extract root domain from host: {}", host))?;
-
-    eprintln!("[*] Start URL: {}", start_url);
-    eprintln!("[*] Host: {}", host);
-    eprintln!("[*] Root domain: {}", root_domain);
-
-    let worker_count = 8;
-    eprintln!("[*] Starting crawl with {} workers...", worker_count);
-
-    let sub_map =
-        crawler::crawl(start_url, root_domain.clone(), worker_count).context("crawl failed")?;
-
-    if args.subdomains_only {
-        println!("Subdomains under root domain '{}':", root_domain);
-        sub_map.print_subdomains_only(&root_domain);
+    // Decide root domain
+    let root_domain = if let Some(rd) = args.root_domain {
+        rd.to_lowercase()
+    } else if let Some(root) = extract_root_domain(&host) {
+        root
     } else {
-        println!("Subdomains and paths under root domain '{}':", root_domain);
-        sub_map.print();
-    }
+        return Err(anyhow::anyhow!(
+            "Cannot derive root domain from host: {}. Please specify --root-domain",
+            host
+        ));
+    };
+
+    let sub_map = crawl(
+        start_url,
+        root_domain.clone(),
+        args.workers,
+        args.max_pages_per_host,
+    )?;
+
+    println!("Discovered subdomaisn under '{}':", root_domain);
+    sub_map.print_subdomains_only(&root_domain);
 
     Ok(())
 }
