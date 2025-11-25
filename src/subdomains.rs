@@ -1,6 +1,7 @@
 // src/subdomains.rs
 use std::collections::{HashMap, HashSet};
 
+use colored::Colorize;
 use url::Url;
 
 /// Holds subdomains and their paths
@@ -51,6 +52,37 @@ impl SubdomainMap {
             for path in paths {
                 println!("  {path}");
             }
+        }
+    }
+
+    /// Print only subdomains (host part before the root domain),
+    /// with the subdomain highlighted and root domain kept normal.
+    ///
+    /// Example:
+    ///   host: "mail.stack.com", root_domain: "stack.com"
+    ///   prints: "<cyan bold>mail</cyan bold>.stack.com"
+    ///
+    ///   host: "stack.com" (no subdomain) -> skipped.
+    pub fn print_subdomains_only(&self, root_domain: &str) {
+        let mut hosts: Vec<_> = self.inner.keys().collect();
+        hosts.sort();
+
+        for host in hosts {
+            let host = host.as_str();
+
+            let Some(stripped) = host.strip_suffix(root_domain) else {
+                // should not happen, as we only store same-root-domain hosts
+                continue;
+            };
+
+            let stripped = stripped.strip_suffix('.').unwrap_or(stripped);
+            if stripped.is_empty() {
+                // When host == root_domain, no subdomain part
+                continue;
+            }
+
+            let sub = stripped.cyan().bold();
+            println!("{sub}.{root_domain}");
         }
     }
 }

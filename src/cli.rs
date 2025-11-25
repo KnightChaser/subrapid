@@ -11,4 +11,8 @@ use clap::Parser;
 pub struct Cli {
     /// The starting URL (e.g. "https://example.com")
     pub url: String,
+
+    /// Print only subdomains (one per line), without detailed path information
+    #[arg(long)]
+    pub subdomains_only: bool,
 }

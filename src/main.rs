@@ -34,10 +34,16 @@ fn main() -> Result<()> {
     let worker_count = 8;
     eprintln!("[*] Starting crawl with {} workers...", worker_count);
 
-    let sub_map = crawler::crawl(start_url, root_domain, worker_count).context("crawl failed")?;
+    let sub_map =
+        crawler::crawl(start_url, root_domain.clone(), worker_count).context("crawl failed")?;
 
-    eprintln!("[*] Crawl complete. Found subdomains and paths:");
-    sub_map.print();
+    if args.subdomains_only {
+        println!("Subdomains under root domain '{}':", root_domain);
+        sub_map.print_subdomains_only(&root_domain);
+    } else {
+        println!("Subdomains and paths under root domain '{}':", root_domain);
+        sub_map.print();
+    }
 
     Ok(())
 }
