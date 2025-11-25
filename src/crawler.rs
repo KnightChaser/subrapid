@@ -1,4 +1,5 @@
 // src/crawler.rs
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -7,12 +8,27 @@ use std::time::Duration;
 use anyhow::Result;
 use colored::Colorize;
 
-
 use url::Url;
 
 use crate::fetch::fetch_body;
 use crate::parse::extract_links;
 use crate::subdomains::SubdomainMap;
+
+/// Configuration for a crawl run.
+pub struct CrawlConfig {
+    /// Initial URL to begin crawling (e.g. https://www.stackexchange.com)
+    pub start_url: Url,
+
+    /// Root scope (e.g. "stackexchange.com")
+    pub root_domain: String,
+
+    /// Number of worker threads
+    pub workers: usize,
+
+    /// Safety cap, e.g. 5 or 10
+    /// (For a single (sub-)domain, how many pages to crawl max)
+    pub max_pages_per_host: usize,
+}
 
 /// Internal shared crawler state.
 /// Protected by Arc<Mutex<...>> in the crawler.
@@ -72,23 +88,17 @@ enum WorkItem {
 
 /// Run a multi-threaded crawl and return the final subdomain map.
 ///
-/// - `start_url`: initial URL to begin crawling (e.g. https://www.stackexchange.com)
-/// - `root_domain`: root scope (e.g. "stackexchange.com")
-/// - `worker_count`: number of worker threads
-/// - `max_pages_per_host`: safety cap, e.g. 5 or 10
-pub fn crawl(
-    start_url: Url,
-    root_domain: String,
-    worker_count: usize,
-    max_pages_per_host: usize,
-) -> Result<SubdomainMap> {
-    let state = Arc::new(Mutex::new(CrawlerState::new(start_url, max_pages_per_host)));
+pub fn crawl(config: CrawlConfig) -> Result<SubdomainMap> {
+    let state = Arc::new(Mutex::new(CrawlerState::new(
+        config.start_url.clone(),
+        config.max_pages_per_host,
+    )));
 
     let mut handles = Vec::new();
 
-    for worker_id in 0..worker_count {
+    for worker_id in 0..config.workers {
         let state = Arc::clone(&state);
-        let root_domain = root_domain.clone();
+        let root_domain = config.root_domain.clone();
 
         let handle = thread::spawn(move || {
             worker_loop(state, &root_domain, worker_id);
@@ -217,9 +227,7 @@ fn process_url(
                 "[+]".green().bold(),
                 format!(
                     "[worker {} ({} queued, max {} possible)]",
-                    worker_id,
-                    current_pages,
-                    max_possible
+                    worker_id, current_pages, max_possible
                 )
                 .cyan(),
                 host.bold(),

@@ -1,3 +1,5 @@
+// src/main.rs
+
 mod cli;
 mod crawler;
 mod fetch;
@@ -6,11 +8,11 @@ mod subdomains;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use url::Url;
 use colored::Colorize;
+use url::Url;
 
 use crate::cli::Cli;
-use crate::crawler::crawl;
+use crate::crawler::{CrawlConfig, crawl};
 use crate::subdomains::extract_root_domain;
 
 fn main() -> Result<()> {
@@ -42,14 +44,20 @@ fn main() -> Result<()> {
         ));
     };
 
-    let sub_map = crawl(
-        start_url,
-        root_domain.clone(),
-        args.workers,
-        args.max_pages_per_host,
-    )?;
+    let config = CrawlConfig {
+        start_url: start_url.clone(),
+        root_domain: root_domain.clone(),
+        workers: args.workers,
+        max_pages_per_host: args.max_pages_per_host,
+    };
+    let sub_map = crawl(config)?;
 
-    println!("{}", format!("Discovered subdomains under '{}':", root_domain).green().bold());
+    println!(
+        "{}",
+        format!("Discovered subdomains under '{}':", root_domain)
+            .green()
+            .bold()
+    );
     sub_map.print_subdomains_only(&root_domain);
 
     Ok(())
