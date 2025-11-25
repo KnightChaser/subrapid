@@ -83,11 +83,12 @@ pub fn crawl(
 
     let mut handles = Vec::new();
 
-    for _ in 0..worker_count {
+    for worker_id in 0..worker_count {
         let state = Arc::clone(&state);
         let root_domain = root_domain.clone();
+
         let handle = thread::spawn(move || {
-            worker_loop(state, &root_domain);
+            worker_loop(state, &root_domain, worker_id);
         });
         handles.push(handle);
     }
@@ -103,7 +104,7 @@ pub fn crawl(
 }
 
 /// Start the crawling process from the given start_url.
-fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str) {
+fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str, worker_id: usize) {
     loop {
         let work = {
             let mut st = state.lock().unwrap();
@@ -123,14 +124,20 @@ fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str) {
 
         match work {
             WorkItem::Url(url) => {
-                let res = process_url(&state, &url, root_domain);
+                let res = process_url(&state, &url, root_domain, worker_id);
                 if let Err(e) = res {
-                    eprintln!("[!] [worker] Error processing {}: {}", url, e);
+                    eprintln!("[!] [worker {}] Error processing {}: {}", worker_id, url, e);
                 }
-                eprintln!("[~] [worker] Finished {}", url);
 
                 let mut st = state.lock().unwrap();
                 st.active -= 1;
+
+                let current_pages = st.visited_urls.len();
+                let max_possible = st.host_page_count.len() * st.max_pages_per_host;
+                eprintln!(
+                    "[~] [worker {worker_id} ({current_pages} queued, max {max_possible} possible)] Finished {}",
+                    url
+                );
             }
             WorkItem::Wait => {
                 thread::sleep(Duration::from_millis(100));
@@ -159,9 +166,15 @@ fn host_in_scope(host: &str, root_domain: &str) -> bool {
     host.ends_with(&suffix)
 }
 
-fn process_url(state: &Arc<Mutex<CrawlerState>>, url: &Url, root_domain: &str) -> Result<()> {
+fn process_url(
+    state: &Arc<Mutex<CrawlerState>>,
+    url: &Url,
+    root_domain: &str,
+    worker_id: usize,
+) -> Result<()> {
     let body = fetch_body(url.as_str())?;
     let links = extract_links(&body, url)?;
+
     let mut st = state.lock().unwrap();
 
     for link in links {
@@ -176,7 +189,20 @@ fn process_url(state: &Arc<Mutex<CrawlerState>>, url: &Url, root_domain: &str) -
         }
 
         // Always record in the subdomain map, even if we don't crawl the page
-        st.sub_map.add_url(&link, root_domain);
+        // And check if this host is newly discovered
+        let is_new_host = st.sub_map.add_url(&link, root_domain);
+
+        // Announce new subdomain (host != root_domain)
+        let root = root_domain.to_lowercase();
+        if is_new_host && host != root {
+            let current_pages = st.visited_urls.len();
+            let max_possible = st.host_page_count.len() * st.max_pages_per_host;
+            eprintln!(
+                "[~] [worker {worker_id} ({current_pages} queued so far, max {max_possible})] \
+                 Discovered subdomain `{}` at `{}`!",
+                host, root_domain
+            );
+        }
 
         // Decide whether to crawl this URL or not
         let url_str = link.as_str().to_string();

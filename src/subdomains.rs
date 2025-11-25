@@ -19,18 +19,18 @@ impl SubdomainMap {
     }
 
     /// Add a URL if it belongs to the given root domain.
-    pub fn add_url(&mut self, url: &Url, root_domain: &str) {
+    pub fn add_url(&mut self, url: &Url, root_domain: &str) -> bool {
         // host must exist
         let host = match url.host_str() {
             Some(h) => h.to_lowercase(),
-            None => return,
+            None => return false,
         };
 
         // Check if host belongs to root_domain
         // Either exact match, or ends with ".root_domain"
         let suffix = format!(".{}", root_domain);
         if host != root_domain && !host.ends_with(&suffix) {
-            return;
+            return false;
         }
 
         // Normalize: remove query + fragment
@@ -43,7 +43,10 @@ impl SubdomainMap {
 
         // Insert into map
         let entry = self.inner.entry(host).or_insert_with(HashSet::new);
+        let is_new_host = entry.is_empty(); // If it was empty, this is the first path.
         entry.insert(path);
+
+        is_new_host
     }
 
     /// Pretty-print everything in the map
