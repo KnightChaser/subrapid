@@ -1,4 +1,5 @@
 // src/fetch.rs
+
 use anyhow::{Context, Result};
 
 pub fn fetch_body(url: &str) -> Result<String> {

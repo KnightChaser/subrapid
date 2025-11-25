@@ -1,4 +1,5 @@
 // src/parse.rs
+
 use anyhow::Result;
 use scraper::{Html, Selector};
 use url::Url;
