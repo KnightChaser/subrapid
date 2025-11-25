@@ -7,6 +7,7 @@ mod subdomains;
 use anyhow::{Context, Result};
 use clap::Parser;
 use url::Url;
+use colored::Colorize;
 
 use crate::cli::Cli;
 use crate::crawler::crawl;
@@ -48,7 +49,7 @@ fn main() -> Result<()> {
         args.max_pages_per_host,
     )?;
 
-    println!("Discovered subdomaisn under '{}':", root_domain);
+    println!("{}", format!("Discovered subdomains under '{}':", root_domain).green().bold());
     sub_map.print_subdomains_only(&root_domain);
 
     Ok(())

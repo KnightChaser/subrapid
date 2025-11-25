@@ -5,6 +5,9 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::Result;
+use colored::Colorize;
+
+
 use url::Url;
 
 use crate::fetch::fetch_body;
@@ -126,7 +129,13 @@ fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str, worker_id: us
             WorkItem::Url(url) => {
                 let res = process_url(&state, &url, root_domain, worker_id);
                 if let Err(e) = res {
-                    eprintln!("[!] [worker {}] Error processing {}: {}", worker_id, url, e);
+                    eprintln!(
+                        "{} {} Error processing {}: {}",
+                        "[!]".red().bold(),
+                        format!("[worker {}]", worker_id).yellow(),
+                        url,
+                        e
+                    );
                 }
 
                 let mut st = state.lock().unwrap();
@@ -135,7 +144,13 @@ fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str, worker_id: us
                 let current_pages = st.visited_urls.len();
                 let max_possible = st.host_page_count.len() * st.max_pages_per_host;
                 eprintln!(
-                    "[~] [worker {worker_id} ({current_pages} queued, max {max_possible} possible)] Finished {}",
+                    "{} {} Finished {}",
+                    "[~]".blue().bold(),
+                    format!(
+                        "[worker {} ({} queued, max {} possible)]",
+                        worker_id, current_pages, max_possible
+                    )
+                    .cyan(),
                     url
                 );
             }
@@ -198,9 +213,17 @@ fn process_url(
             let current_pages = st.visited_urls.len();
             let max_possible = st.host_page_count.len() * st.max_pages_per_host;
             eprintln!(
-                "[~] [worker {worker_id} ({current_pages} queued so far, max {max_possible})] \
-                 Discovered subdomain `{}` at `{}`!",
-                host, root_domain
+                "{} {} Discovered subdomain `{}` at `{}`!",
+                "[+]".green().bold(),
+                format!(
+                    "[worker {} ({} queued, max {} possible)]",
+                    worker_id,
+                    current_pages,
+                    max_possible
+                )
+                .cyan(),
+                host.bold(),
+                root_domain
             );
         }
 
