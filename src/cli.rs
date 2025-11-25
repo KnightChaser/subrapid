@@ -11,8 +11,4 @@ use clap::Parser;
 pub struct Cli {
     /// The starting URL (e.g. "https://example.com")
     pub url: String,
-
-    /// If set, print extracted links instead of full body
-    #[arg(long)]
-    pub links_only: bool,
 }

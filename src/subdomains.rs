@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use url::Url;
 
 /// Holds subdomains and their paths
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SubdomainMap {
     // host -> set of paths
     inner: HashMap<String, HashSet<String>>,

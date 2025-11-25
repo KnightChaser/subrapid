@@ -1,4 +1,5 @@
 mod cli;
+mod crawler;
 mod fetch;
 mod parse;
 mod subdomains;
@@ -8,9 +9,7 @@ use clap::Parser;
 use url::Url;
 
 use crate::cli::Cli;
-use crate::fetch::fetch_body;
-use crate::parse::extract_links;
-use crate::subdomains::{SubdomainMap, extract_root_domain};
+use crate::subdomains::extract_root_domain;
 
 fn main() -> Result<()> {
     let args = Cli::parse();
@@ -32,28 +31,13 @@ fn main() -> Result<()> {
     eprintln!("[*] Host: {}", host);
     eprintln!("[*] Root domain: {}", root_domain);
 
-    // Fetch body
-    let body = fetch_body(start_url.as_str())?;
+    let worker_count = 8;
+    eprintln!("[*] Starting crawl with {} workers...", worker_count);
 
-    // Extract links
-    let links = extract_links(&body, &start_url)?;
-    eprintln!("[*] Extracted {} links", links.len());
+    let sub_map = crawler::crawl(start_url, root_domain, worker_count).context("crawl failed")?;
 
-    let mut sub_map = SubdomainMap::new();
-
-    for link in &links {
-        sub_map.add_url(link, &root_domain);
-    }
-
-    if args.links_only {
-        println!("All extracted links:");
-        for link in links {
-            println!("{}", link);
-        }
-    } else {
-        println!("Subdomains and paths under root domain '{}':", root_domain);
-        sub_map.print();
-    }
+    eprintln!("[*] Crawl complete. Found subdomains and paths:");
+    sub_map.print();
 
     Ok(())
 }
