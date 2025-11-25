@@ -133,7 +133,7 @@ fn process_url(state: &Arc<Mutex<CrawlerState>>, url: &Url, root_domain: &str) -
         // Only crawl a host once;
         // if we've never visited this host, enqueue one URL for it
         if !st.visited_hosts.contains(&host) {
-            st.visited_hosts.insert(host);
+            st.visited_hosts.insert(host.to_lowercase());
             st.queue.push_back(link);
         } else {
             // Already visited this host; ignore the link
