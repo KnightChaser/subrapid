@@ -15,23 +15,26 @@ use crate::subdomains::SubdomainMap;
 /// Protected by Arc<Mutex<...>> in the crawler.
 struct CrawlerState {
     queue: VecDeque<Url>,
-    visited: HashSet<String>,
+    visited_hosts: HashSet<String>, // Hosts that have been visited
     sub_map: SubdomainMap,
-    /// Number of workers currently processing a URL
+    /// Number of currently active workers
     active: usize,
 }
 
 impl CrawlerState {
     fn new(start_url: Url) -> Self {
         let mut queue = VecDeque::new();
-        let mut visited = HashSet::new();
+        let mut visited_hosts = HashSet::new();
 
-        visited.insert(start_url.as_str().to_string());
+        if let Some(host) = start_url.host_str() {
+            visited_hosts.insert(host.to_string());
+        }
+
         queue.push_back(start_url);
 
         Self {
             queue,
-            visited,
+            visited_hosts,
             sub_map: SubdomainMap::new(),
             active: 0,
         }
@@ -114,23 +117,27 @@ fn process_url(state: &Arc<Mutex<CrawlerState>>, url: &Url, root_domain: &str) -
     let mut st = state.lock().unwrap();
 
     for link in links {
-        // Only follow links under the same root domain
-        let host_ok = match link.host_str() {
-            Some(h) => h.ends_with(root_domain),
-            None => false,
+        // Ensure the link has a host and is under the same root domain
+        let host = match link.host_str() {
+            Some(h) => h.to_lowercase(),
+            None => continue,
         };
-        if !host_ok {
+
+        if !host.ends_with(root_domain) {
             continue;
         }
 
         // Record in subdomain map
         st.sub_map.add_url(&link, root_domain);
 
-        // Avoid revisiting the same URL
-        let link_str = link.as_str().to_string();
-        if !st.visited.contains(&link_str) {
-            st.visited.insert(link_str.clone());
+        // Only crawl a host once;
+        // if we've never visited this host, enqueue one URL for it
+        if !st.visited_hosts.contains(&host) {
+            st.visited_hosts.insert(host);
             st.queue.push_back(link);
+        } else {
+            // Already visited this host; ignore the link
+            continue;
         }
     }
 
