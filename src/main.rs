@@ -13,7 +13,7 @@ use colored::Colorize;
 use url::Url;
 
 use crate::cli::Cli;
-use crate::sources::dns_bruteforce::DnsBruteforce;
+use crate::sources::crtsh::CrtSh;
 use crate::sources::html_crawler::HtmlCrawler;
 use crate::sources::{DiscoveryConfig, SubdomainSource};
 use crate::subdomains::{SubdomainMap, extract_root_domain};
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
     };
 
     let sources: Vec<Box<dyn SubdomainSource>> =
-        vec![Box::new(HtmlCrawler::new()), Box::new(DnsBruteforce::new())];
+        vec![Box::new(HtmlCrawler::new()), Box::new(CrtSh::new())];
 
     let mut combined = SubdomainMap::new();
     for src in sources {
