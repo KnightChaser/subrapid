@@ -51,7 +51,7 @@ pub fn log_worker_finished(worker_id: usize, url: &Url, stats: &CrawlerStats) {
 
 pub fn log_new_subdomain(worker_id: usize, host: &str, root_domain: &str, stats: &CrawlerStats) {
     eprintln!(
-        "{} {} Discovered subdomain `{}` at `{}`!",
+        "{} {} Discovered subdomain {} at {}!",
         "[+]".green().bold(),
         format!(
             "[worker {} ({} visited, max {} possible)]",
