@@ -8,9 +8,9 @@ use std::time::Duration;
 use anyhow::Result;
 use url::Url;
 
-use crate::fetch::fetch_body;
+use crate::fetch::fetch_page;
 use crate::logging::{self, CrawlerStats};
-use crate::parse::extract_links;
+use crate::parse::{extract_csp_links, extract_links};
 use crate::sources::{DiscoveryConfig, SubdomainSource};
 use crate::subdomains::SubdomainMap;
 
@@ -196,8 +196,16 @@ fn process_url(
     root_domain: &str,
     worker_id: usize,
 ) -> Result<()> {
-    let body = fetch_body(url.as_str())?;
-    let links = extract_links(&body, url)?;
+    // Get the page (body + CSP)
+    let page = fetch_page(url.as_str())?;
+
+    // Extract links from HTML body (standard crawling)
+    let mut links = extract_links(&page.body, url)?;
+
+    if let Some(csp_header) = page.csp {
+        let csp_links = extract_csp_links(&csp_header);
+        links.extend(csp_links);
+    }
 
     let mut st = state.lock().unwrap();
 
