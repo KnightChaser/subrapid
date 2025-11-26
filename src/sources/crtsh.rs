@@ -1,6 +1,7 @@
 // src/sources/crtsh.rs
 
 use anyhow::{Context, Result};
+use colored::Colorize;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::time::Duration;
@@ -39,6 +40,7 @@ impl SubdomainSource for CrtSh {
             .build()
             .context("Failed to build HTTP client for crt.sh")?;
 
+        eprintln!("[*] Querying crt.sh for domain {}", cfg.root_domain);
         let resp = client.get(&query_url).send().with_context(|| {
             format!(
                 "Failed to send request to crt.sh for domain {}",
@@ -49,6 +51,10 @@ impl SubdomainSource for CrtSh {
         if !resp.status().is_success() {
             anyhow::bail!("crt.sh returned non-success status code: {}", resp.status());
         }
+        eprintln!(
+            "[*] Successfully retrieved data from crt.sh, size {} bytes",
+            resp.content_length().unwrap_or(0)
+        );
 
         // Parse the JSON list from crt.sh
         let entries: Vec<CrtShEntry> = resp
@@ -78,6 +84,11 @@ impl SubdomainSource for CrtSh {
                 // such scheme is not shown, so this may be acceptable.
                 if let Ok(fake_url) = Url::parse(&format!("https://{}", domain)) {
                     map.add_url(&fake_url, &cfg.root_domain);
+                    eprintln!(
+                        "{} Discovered potential (sub)domain {} via crt.sh",
+                        "[+]".green().bold(),
+                        format!("{}", domain).bold()
+                    );
                 }
             }
         }
