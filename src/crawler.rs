@@ -7,10 +7,10 @@ use std::time::Duration;
 
 use anyhow::Result;
 use colored::Colorize;
-
 use url::Url;
 
 use crate::fetch::fetch_body;
+use crate::logging::{self, CrawlerStats};
 use crate::parse::extract_links;
 use crate::subdomains::SubdomainMap;
 
@@ -78,6 +78,14 @@ impl CrawlerState {
             active: 0,
         }
     }
+
+    fn snapshot_stats(&self) -> CrawlerStats {
+        CrawlerStats {
+            visited_pages: self.visited_urls.len(),
+            hosts_seen: self.host_page_count.len(),
+            max_pages_per_host: self.max_pages_per_host,
+        }
+    }
 }
 
 enum WorkItem {
@@ -139,30 +147,20 @@ fn worker_loop(state: Arc<Mutex<CrawlerState>>, root_domain: &str, worker_id: us
             WorkItem::Url(url) => {
                 let res = process_url(&state, &url, root_domain, worker_id);
                 if let Err(e) = res {
-                    eprintln!(
-                        "{} {} Error processing {}: {}",
-                        "[!]".red().bold(),
-                        format!("[worker {}]", worker_id).yellow(),
-                        url,
-                        e
-                    );
+                    let mut st = state.lock().unwrap();
+                    st.active -= 1;
+                    let stats = st.snapshot_stats();
+                    drop(st); // Release lock before logging
+
+                    logging::log_worker_error(worker_id, &url, &e, &stats);
+                } else {
+                    let mut st = state.lock().unwrap();
+                    st.active -= 1;
+                    let stats = st.snapshot_stats();
+                    drop(st); // Release lock before logging
+
+                    logging::log_worker_finished(worker_id, &url, &stats);
                 }
-
-                let mut st = state.lock().unwrap();
-                st.active -= 1;
-
-                let current_pages = st.visited_urls.len();
-                let max_possible = st.host_page_count.len() * st.max_pages_per_host;
-                eprintln!(
-                    "{} {} Finished {}",
-                    "[~]".blue().bold(),
-                    format!(
-                        "[worker {} ({} queued, max {} possible)]",
-                        worker_id, current_pages, max_possible
-                    )
-                    .cyan(),
-                    url
-                );
             }
             WorkItem::Wait => {
                 thread::sleep(Duration::from_millis(100));
@@ -220,19 +218,9 @@ fn process_url(
         // Announce new subdomain (host != root_domain)
         let root = root_domain.to_lowercase();
         if is_new_host && host != root {
-            let current_pages = st.visited_urls.len();
-            let max_possible = st.host_page_count.len() * st.max_pages_per_host;
-            eprintln!(
-                "{} {} Discovered subdomain `{}` at `{}`!",
-                "[+]".green().bold(),
-                format!(
-                    "[worker {} ({} queued, max {} possible)]",
-                    worker_id, current_pages, max_possible
-                )
-                .cyan(),
-                host.bold(),
-                root_domain
-            );
+            let stats = st.snapshot_stats();
+
+            logging::log_new_subdomain(worker_id, &host, root_domain, &stats);
         }
 
         // Decide whether to crawl this URL or not

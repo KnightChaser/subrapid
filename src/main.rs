@@ -3,6 +3,7 @@
 mod cli;
 mod crawler;
 mod fetch;
+mod logging;
 mod parse;
 mod subdomains;
 
