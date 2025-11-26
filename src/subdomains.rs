@@ -91,6 +91,16 @@ impl SubdomainMap {
             println!("{sub}.{root_domain}");
         }
     }
+
+    /// Merge another SubdomainMap into this one.
+    pub fn merge_from(&mut self, other: SubdomainMap) {
+        for (host, paths) in other.inner {
+            self.inner
+                .entry(host)
+                .or_insert_with(HashSet::new)
+                .extend(paths);
+        }
+    }
 }
 
 /// A naive "root domain" extractor.

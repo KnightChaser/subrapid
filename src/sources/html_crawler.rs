@@ -1,4 +1,4 @@
-// src/crawler.rs
+// src/sources/html_crawler.rs
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -11,22 +11,25 @@ use url::Url;
 use crate::fetch::fetch_body;
 use crate::logging::{self, CrawlerStats};
 use crate::parse::extract_links;
+use crate::sources::{DiscoveryConfig, SubdomainSource};
 use crate::subdomains::SubdomainMap;
 
-/// Configuration for a crawl run.
-pub struct CrawlConfig {
-    /// Initial URL to begin crawling (e.g. https://www.stackexchange.com)
-    pub start_url: Url,
+pub struct HtmlCrawler;
 
-    /// Root scope (e.g. "stackexchange.com")
-    pub root_domain: String,
+impl HtmlCrawler {
+    pub fn new() -> Self {
+        Self
+    }
+}
 
-    /// Number of worker threads
-    pub workers: usize,
+impl SubdomainSource for HtmlCrawler {
+    fn name(&self) -> &'static str {
+        "html-crawler"
+    }
 
-    /// Safety cap, e.g. 5 or 10
-    /// (For a single (sub-)domain, how many pages to crawl max)
-    pub max_pages_per_host: usize,
+    fn discover(&self, cfg: &DiscoveryConfig) -> Result<SubdomainMap> {
+        crawl_html(cfg)
+    }
 }
 
 /// Internal shared crawler state.
@@ -94,8 +97,7 @@ enum WorkItem {
 }
 
 /// Run a multi-threaded crawl and return the final subdomain map.
-///
-pub fn crawl(config: CrawlConfig) -> Result<SubdomainMap> {
+pub fn crawl_html(config: &DiscoveryConfig) -> Result<SubdomainMap> {
     let state = Arc::new(Mutex::new(CrawlerState::new(
         config.start_url.clone(),
         config.max_pages_per_host,
