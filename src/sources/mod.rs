@@ -2,6 +2,7 @@
 
 pub mod crtsh;
 pub mod html_crawler;
+pub mod wayback;
 
 use anyhow::Result;
 use url::Url;

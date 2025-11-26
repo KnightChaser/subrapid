@@ -15,6 +15,7 @@ use url::Url;
 use crate::cli::Cli;
 use crate::sources::crtsh::CrtSh;
 use crate::sources::html_crawler::HtmlCrawler;
+use crate::sources::wayback::WaybackArchive;
 use crate::sources::{DiscoveryConfig, SubdomainSource};
 use crate::subdomains::{SubdomainMap, extract_root_domain};
 
@@ -52,8 +53,11 @@ fn main() -> Result<()> {
         max_pages_per_host: args.max_pages_per_host,
     };
 
-    let sources: Vec<Box<dyn SubdomainSource>> =
-        vec![Box::new(HtmlCrawler::new()), Box::new(CrtSh::new())];
+    let sources: Vec<Box<dyn SubdomainSource>> = vec![
+        Box::new(HtmlCrawler::new()),
+        Box::new(CrtSh::new()),
+        Box::new(WaybackArchive::new()),
+    ];
 
     let mut combined = SubdomainMap::new();
     for src in sources {
