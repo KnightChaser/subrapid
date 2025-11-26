@@ -1,11 +1,13 @@
 // src/sources/crtsh.rs
 
-use crate::sources::{DiscoveryConfig, SubdomainSource};
-use crate::subdomains::SubdomainMap;
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::time::Duration;
 use url::Url;
+
+use crate::sources::{DiscoveryConfig, SubdomainSource};
+use crate::subdomains::SubdomainMap;
 
 pub struct CrtSh;
 
@@ -52,18 +54,28 @@ impl SubdomainSource for CrtSh {
         let entries: Vec<CrtShEntry> = resp
             .json()
             .context("Failed to parse JSON response from crt.sh")?;
-        let mut map = SubdomainMap::new();
+        let mut map: SubdomainMap = SubdomainMap::new();
+        let mut seen_domains: HashSet<String> = HashSet::new();
 
         for entry in entries {
             for raw_domain in entry.name_value.split('\n') {
-                let domain = raw_domain.trim().to_lowercase();
+                let domain = raw_domain.trim();
 
                 // Skip wildcards
                 if domain.contains('*') {
                     continue;
                 }
 
-                // SubdomainMa expects a Url, so we prepend "https://".
+                // Filter duplication to avoid unnecessary Url::parse() calls
+                if !seen_domains.insert(domain.to_string()) {
+                    continue;
+                }
+
+                // NOTE:
+                // SubdomainMa expects a Url, so we prepend "https://",
+                // assuming HTTPS for all subdomains.
+                // When all subdomain is being printed out,
+                // such scheme is not shown, so this may be acceptable.
                 if let Ok(fake_url) = Url::parse(&format!("https://{}", domain)) {
                     map.add_url(&fake_url, &cfg.root_domain);
                 }
