@@ -6,7 +6,6 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::Result;
-use colored::Colorize;
 use url::Url;
 
 use crate::fetch::fetch_body;
