@@ -1,6 +1,7 @@
 // src/fetch.rs
 
 use anyhow::{Context, Result};
+use std::time::Duration;
 
 pub struct FetchedPage {
     pub body: String,
@@ -10,6 +11,7 @@ pub struct FetchedPage {
 /// Fetches the body and Content-Security-Policy header of the given URL.
 pub fn fetch_page(url: &str) -> Result<FetchedPage> {
     let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(20))
         .user_agent("subrapid-knightchaser/0.1")
         .build()
         .context("failed to build HTTP client")?;
