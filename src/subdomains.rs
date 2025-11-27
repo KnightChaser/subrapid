@@ -3,6 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use colored::Colorize;
+use psl::domain_str;
 use url::Url;
 
 /// Holds subdomains and their paths
@@ -103,44 +104,41 @@ impl SubdomainMap {
     }
 }
 
-/// A naive "root domain" extractor.
-/// "www.stackoverflow.com" -> "stackoverflow.com"
-/// "chat.stackoverflow.com" -> "stackoverflow.com"
+/// Extract the registrable ("root") domain using the Public Suffix List.
 ///
-/// WARN: This is *not* a complete implementation for all valid TLDs (e.g. .co.uk),
-/// but fine as a first step.
+/// Examples:
+/// - "www.stackoverflow.com" -> Some("stackoverflow.com")
+/// - "example.co.uk"         -> Some("example.co.uk")
+/// - "co.uk"                 -> None (not registrable itself)
 pub fn extract_root_domain(host: &str) -> Option<String> {
-    // NOTE:
-    // Example TLDs that consist of two parts:
-    const SPECIAL_TLDS: &[&str] = &["co.uk", "org.uk", "gov.uk", "co.kr", "ac.kr"];
+    domain_str(host).map(|s| s.to_string())
+}
 
-    let host = host.to_lowercase();
+#[cfg(test)]
+mod tests {
+    use super::extract_root_domain;
 
-    // 1. Check special multi-label TLDs
-    for tld in SPECIAL_TLDS {
-        if host.ends_with(tld) {
-            let without_tld = host.strip_suffix(tld)?.strip_suffix('.')?;
-
-            // take last label before TLD
-            if let Some(last_dot) = without_tld.rfind('.') {
-                let sld = &without_tld[last_dot + 1..];
-                return Some(format!("{}.{}", sld, tld));
-            } else {
-                // host is just like "example.co.uk"
-                return Some(format!("{}.{}", without_tld, tld));
-            }
-        }
+    #[test]
+    fn test_extract_root_domain_basic() {
+        assert_eq!(
+            extract_root_domain("www.stackoverflow.com").as_deref(),
+            Some("stackoverflow.com")
+        );
+        assert_eq!(
+            extract_root_domain("stackoverflow.com").as_deref(),
+            Some("stackoverflow.com")
+        );
     }
 
-    // 2. Fallback: naive last-two-labels approach
-    let parts: Vec<_> = host.split('.').collect();
-    if parts.len() <= 2 {
-        return None;
+    #[test]
+    fn test_extract_root_domain_multi_tld() {
+        assert_eq!(
+            extract_root_domain("a.b.example.co.uk").as_deref(),
+            Some("example.co.uk")
+        );
+        assert_eq!(
+            extract_root_domain("example.co.uk").as_deref(),
+            Some("example.co.uk")
+        );
     }
-
-    Some(format!(
-        "{}.{}",
-        parts[parts.len() - 2],
-        parts[parts.len() - 1]
-    ))
 }
