@@ -78,7 +78,7 @@ impl SubdomainSource for CrtSh {
                 }
 
                 // NOTE:
-                // SubdomainMa expects a Url, so we prepend "https://",
+                // SubdomainMap expects a Url, so we prepend "https://",
                 // assuming HTTPS for all subdomains.
                 // When all subdomain is being printed out,
                 // such scheme is not shown, so this may be acceptable.

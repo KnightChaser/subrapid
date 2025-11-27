@@ -66,7 +66,7 @@ impl SubdomainSource for WaybackArchive {
         let mut map = SubdomainMap::new();
         let mut processed_hosts = HashSet::new();
 
-        // NOTE::
+        // NOTE:
         // -1 because first row is header. Example output be like:
         // ```json
         // [["original"],

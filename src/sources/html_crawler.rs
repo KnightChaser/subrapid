@@ -44,7 +44,7 @@ struct CrawlerState {
     /// How many pages we have crawled per host
     host_page_count: HashMap<String, usize>,
 
-    /// Limit per hsot (to avoid overloading)
+    /// Limit per host (to avoid overloading)
     max_pages_per_host: usize,
 
     /// Discovered subdomains / URLs under the root domain
